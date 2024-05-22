@@ -15,18 +15,26 @@ pub struct Config {
 impl Config {
     // Build the program configuration based on command arguments.
     // Arguments should include the query, file path, and optionally, the option to ignore case.
-    pub fn build(args: &[String]) -> Result<Config, &'static str> {
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
         // Args need to have at least query and file_path to run
-        if args.len() < 3 {
-            return Err("Not enough arguments");
-        }
+        // if args.len() < 3 {
+        //     return Err("Not enough arguments");
+        // }
 
-        let query = args[1].clone();
-        let file_path = args[2].clone();
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+
+        let file_path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file path"),
+        };
+        
         // Toggle the case-sensitive of the command.
         // arg takes the precendence over the environment
         // variable if they are opposite to each other.
-        let ignore_case = args.get(3).map_or_else(
+        let ignore_case = args.next().map_or_else(
             || env::var("IGNORE_CASE").is_ok(),
             |arg| match arg.as_str() {
                 "-i" | "--ignore-case" => true,
@@ -63,28 +71,18 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
 // No case sensitive string query search.
 pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-
-    for line in contents.lines() {
-        if line.contains(query) {
-            results.push(line);
-        }
-    }
-
-    results
+    contents
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
 }
 
 // Case sensitive string query search.
 fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-
-    for line in contents.lines() {
-        if line.to_lowercase().contains(&query.to_lowercase()) {
-            results.push(line);
-        }
-    }
-
-    results
+    contents
+        .lines()
+        .filter(|line| line.contains(&query.to_lowercase()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -128,14 +126,13 @@ Trust me.";
         std::env::set_var("IGNORE_CASE", "1");
 
         // Sets the command arguments, including the option to ignore case.
-        let args = vec![
-            "".to_string(),
-            "to".to_string(),
-            "poem.txt".to_string(),
-            "-i".to_string(),
-        ];
+        let args = vec!["to".to_string(), "poem.txt".to_string(), "-i".to_string()];
+
+        // Create the iterator based on arguments vector.
+        let args_iter = args.into_iter();
+
         // Creates the configuration based on the arguments.
-        let config = Config::build(&args).unwrap();
+        let config = Config::build(args_iter).unwrap();
 
         // Checks if the configuration indicates that comparison should be case-insensitive.
         assert_eq!(true, config.ignore_case);
