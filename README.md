@@ -1,8 +1,6 @@
 # My Rust Program
 
-```markdown
 This program is a command-line utility written in Rust that searches for a query in given input (either a file or direct text input).
-```
 
 ## Usage in Linux Terminal
 
